@@ -98,9 +98,24 @@ function ResourcesGetter(model, options, params) {
 
         return where;
       } catch (error) {
-        const errorMessage = `Invalid SQL query for this Live Query segment:\n${error.message}`;
-        logger.error(errorMessage);
-        throw new ErrorHTTP422(errorMessage);
+        try {
+          const results = await options.connections[1]
+            .query(queryToFilterRecords, {
+              type: options.sequelize.QueryTypes.SELECT,
+            });
+
+          const recordIds = results.map((result) => result[primaryKey] || result.id);
+          const condition = { [primaryKey]: {} };
+          condition[primaryKey][OPERATORS.IN] = recordIds;
+          where[OPERATORS.AND].push(condition);
+
+          return where;
+        } catch (_) {
+
+          const errorMessage = `Invalid SQL query for this Live Query segment:\n${error.message}`;
+          logger.error(errorMessage);
+          throw new ErrorHTTP422(errorMessage);
+        }
       }
     }
 
